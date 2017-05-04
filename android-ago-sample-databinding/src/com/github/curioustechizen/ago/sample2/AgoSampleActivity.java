@@ -15,6 +15,8 @@ import android.widget.ArrayAdapter;
 import com.github.curioustechizen.ago.sample2.DummyContent.RowItem;
 import com.github.curioustechizen.ago.sample2.databinding.RowItemBinding;
 
+import static com.github.curioustechizen.ago.RelativeTimeTextView.RelativeTimeFormat.RTF_COMPOSED_RELATIVE_OMITTING_TODAY_WITH_COUNTER;
+
 public class AgoSampleActivity extends ListActivity {
 
 	@Override
@@ -45,7 +47,7 @@ public class AgoSampleActivity extends ListActivity {
 			rib.setDate(new Date());
 
 			rib.message.setText(item.info);
-			rib.timestamp.setReferenceTime(item.timestamp);
+			rib.timestamp.setReferenceTime(RTF_COMPOSED_RELATIVE_OMITTING_TODAY_WITH_COUNTER, item.timestamp);
 			return rib.getRoot();
 		}
 	}
