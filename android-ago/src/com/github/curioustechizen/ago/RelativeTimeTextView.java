@@ -49,6 +49,7 @@ public class RelativeTimeTextView extends TextView {
     private Handler mHandler = new Handler();
     private UpdateTimeRunnable mUpdateTimeTask;
     private boolean isUpdateTaskRunning = false;
+    private static String mNowString = "Now";
 
     public RelativeTimeTextView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -84,7 +85,14 @@ public class RelativeTimeTextView extends TextView {
         }
 
         setReferenceTime(RTF_ONLY_TIME_RELATIVE, mReferenceTime);
+    }
 
+    private static String getNowString() {
+        return RelativeTimeTextView.mNowString;
+    }
+
+    public static void setNowString(String mNowString) {
+        RelativeTimeTextView.mNowString = mNowString;
     }
 
     /**
@@ -166,7 +174,7 @@ public class RelativeTimeTextView extends TextView {
          */
         if (this.mReferenceTime == -1L)
             return;
-        setText(mPrefix + getFormattedDateAndTime() + mSuffix);
+        setText(mPrefix + RelativeTimeTextView.getFormattedDateAndTime(mTimeFormat, mReferenceTime) + mSuffix);
     }
 
 
@@ -178,34 +186,34 @@ public class RelativeTimeTextView extends TextView {
     //ComposedRelativeOmittingToday —> Tomorrow 10:15 || 10:50 (in 10m)
     //ComposedRelativeOmittingTodayWithCounter —> Tomorrow 10:15 || 10:50 (in 10m)
 
-    private CharSequence getFormattedDateAndTime() {
+    public static CharSequence getFormattedDateAndTime(RelativeTimeFormat mTimeFormat, long mReferenceTime) {
 
         CharSequence composed = "";
 
         switch (mTimeFormat) {
             case RTF_ONLY_DATE_RELATIVE:
-                composed = getFormattedDate();
+                composed = getFormattedDate(mTimeFormat, mReferenceTime);
                 break;
             case RTF_ONLY_DATE_ABSOLUTE:
-                composed = getFormattedDate();
+                composed = getFormattedDate(mTimeFormat, mReferenceTime);
                 break;
             case RTF_ONLY_TIME_RELATIVE:
-                composed = getFormattedTime();
+                composed = getFormattedTime(mTimeFormat, mReferenceTime);
                 break;
             case RTF_ONLY_TIME_RELATIVE_TODAY_AND_ABSOLUTE_OTHERWISE:
                 if (DateUtils.isToday(mReferenceTime)) {
-                    composed = getFormattedTime();
+                    composed = getFormattedTime(mTimeFormat, mReferenceTime);
                 } else {
-                    composed = getSimpleFormattedTime();
+                    composed = getSimpleFormattedTime(mReferenceTime);
                 }
                 break;
             case RTF_ONLY_TIME_ABSOLUTE:
-                composed = getSimpleFormattedTime();
+                composed = getSimpleFormattedTime(mReferenceTime);
 
                 break;
             case RTF_COMPOSED_ABSOLUTE: {
                 // Time
-                CharSequence timeStr = getSimpleFormattedTime();
+                CharSequence timeStr = getSimpleFormattedTime(mReferenceTime);
 
                 // Date
                 CharSequence dateStr = DateFormat.getDateInstance(DateFormat.SHORT).format(new Date(mReferenceTime));
@@ -214,7 +222,7 @@ public class RelativeTimeTextView extends TextView {
             }
             case RTF_COMPOSED_ABSOLUTE_OMITTING_TODAY: {
                 // Time
-                composed = getSimpleFormattedTime();
+                composed = getSimpleFormattedTime(mReferenceTime);
                 // Date
                 if (!DateUtils.isToday(mReferenceTime)) {
                     CharSequence dateStr = DateFormat.getDateInstance(DateFormat.SHORT).format(new Date(mReferenceTime));
@@ -224,23 +232,23 @@ public class RelativeTimeTextView extends TextView {
             }
             case RTF_COMPOSED_RELATIVE_OMITTING_TODAY: {
                 // Time
-                composed = getSimpleFormattedTime();
+                composed = getSimpleFormattedTime(mReferenceTime);
                 // Date
                 if (!DateUtils.isToday(mReferenceTime)) {
-                    composed = getFormattedDate() + " " + composed;
+                    composed = getFormattedDate(mTimeFormat, mReferenceTime) + " " + composed;
                 }
                 break;
             }
             case RTF_COMPOSED_RELATIVE_OMITTING_TODAY_WITH_COUNTER: {
                 // Time
-                composed = getSimpleFormattedTime();
+                composed = getSimpleFormattedTime(mReferenceTime);
 
                 // Date
                 if (!DateUtils.isToday(mReferenceTime)) {
-                    composed = getFormattedDate() + " " + composed;
+                    composed = getFormattedDate(mTimeFormat, mReferenceTime) + " " + composed;
                 }
                 else {
-                    composed = composed + " " + getFormattedTime();
+                    composed = composed + " " + getFormattedTime(mTimeFormat, mReferenceTime);
                 }
                 break;
             }
@@ -251,28 +259,28 @@ public class RelativeTimeTextView extends TextView {
         return composed;
     }
 
-    private boolean isTomorrow(long timeInMillis) {
+    private static boolean isTomorrow(long timeInMillis) {
         return DateUtils.isToday(new Date(timeInMillis).getTime() - DateUtils.DAY_IN_MILLIS);
     }
 
-    private boolean isYesterday(long timeInMillis) {
+    private static boolean isYesterday(long timeInMillis) {
         return DateUtils.isToday(new Date(timeInMillis).getTime() + DateUtils.DAY_IN_MILLIS);
     }
 
-    private boolean isWithinThreeNextDays(long timeInMillis) {
+    private static boolean isWithinThreeNextDays(long timeInMillis) {
         return DateUtils.isToday(new Date(timeInMillis).getTime() - 2 * DateUtils.DAY_IN_MILLIS)
                 || DateUtils.isToday(new Date(timeInMillis).getTime() - 3 * DateUtils.DAY_IN_MILLIS);
     }
 
-    private boolean isNow(long timeInMillis) {
+    private static boolean isNow(long timeInMillis) {
         return timeInMillis > System.currentTimeMillis() - 30 * 1000 && timeInMillis < System.currentTimeMillis() + 30 * 1000;
     }
 
-    private boolean isWithin24H(long timeInMillis) {
+    private static boolean isWithin24H(long timeInMillis) {
         return timeInMillis > System.currentTimeMillis() - DateUtils.DAY_IN_MILLIS && timeInMillis < System.currentTimeMillis() + DateUtils.DAY_IN_MILLIS;
     }
 
-    private CharSequence getFormattedDate() {
+    private static CharSequence getFormattedDate(RelativeTimeFormat mTimeFormat, long mReferenceTime) {
 
         CharSequence result = "";
 
@@ -302,7 +310,7 @@ public class RelativeTimeTextView extends TextView {
         return result;
     }
 
-    private CharSequence getFormattedTime() {
+    private static CharSequence getFormattedTime(RelativeTimeFormat mTimeFormat, long mReferenceTime) {
         CharSequence result = "";
 
         switch (mTimeFormat) {
@@ -310,7 +318,7 @@ public class RelativeTimeTextView extends TextView {
             case RTF_ONLY_TIME_RELATIVE_TODAY_AND_ABSOLUTE_OTHERWISE:
             case RTF_COMPOSED_RELATIVE_OMITTING_TODAY_WITH_COUNTER:
                 if (isNow(mReferenceTime)) {
-                    result = getResources().getString(R.string.just_now);
+                    result = getNowString();
                 } else if (isWithin24H(mReferenceTime)) {
                     result = DateUtils.getRelativeTimeSpanString(
                             mReferenceTime,
@@ -330,7 +338,7 @@ public class RelativeTimeTextView extends TextView {
         return result;
     }
 
-    private CharSequence getSimpleFormattedTime() {
+    private static CharSequence getSimpleFormattedTime(long mReferenceTime) {
         SimpleDateFormat format = new SimpleDateFormat("HH:mm");
         return format.format(new Date(mReferenceTime));
     }
