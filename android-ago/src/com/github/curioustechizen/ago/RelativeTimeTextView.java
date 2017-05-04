@@ -10,21 +10,38 @@ import android.text.format.DateUtils;
 import android.util.AttributeSet;
 import android.view.View;
 import android.widget.TextView;
-import com.github.curioustechizen.ago.R;
 
 import java.lang.ref.WeakReference;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
+import static android.icu.text.RelativeDateTimeFormatter.AbsoluteUnit.NOW;
+import static com.github.curioustechizen.ago.RelativeTimeTextView.RelativeTimeFormat.RTF_ONLY_TIME_RELATIVE;
 
 /**
  * A {@code TextView} that, given a reference time, renders that time as a time period relative to the current time.
- * @author Kiran Rao
- * @see #setReferenceTime(long)
  *
+ * @author Kiran Rao
+ * @see #setReferenceTime(RelativeTimeFormat, long)
  */
 public class RelativeTimeTextView extends TextView {
 
+    public enum RelativeTimeFormat {
+        RTF_ONLY_DATE_RELATIVE,
+        RTF_ONLY_DATE_ABSOLUTE,
+        RTF_ONLY_TIME_RELATIVE,
+        RTF_ONLY_TIME_RELATIVE_TODAY_AND_ABSOLUTE_OTHERWISE,
+        RTF_ONLY_TIME_ABSOLUTE,
+        RTF_COMPOSED_ABSOLUTE,
+        RTF_COMPOSED_ABSOLUTE_OMITTING_TODAY,
+        RTF_COMPOSED_RELATIVE_OMITTING_TODAY,
+        RTF_COMPOSED_RELATIVE_OMITTING_TODAY_WITH_COUNTER;
+    }
+
     private static final long INITIAL_UPDATE_INTERVAL = DateUtils.MINUTE_IN_MILLIS;
 
+    private RelativeTimeFormat mTimeFormat;
     private long mReferenceTime;
     private String mText;
     private String mPrefix;
@@ -60,18 +77,19 @@ public class RelativeTimeTextView extends TextView {
         try {
             mReferenceTime = Long.valueOf(mText);
         } catch (NumberFormatException nfe) {
-        	/*
-        	 * TODO: Better exception handling
+            /*
+             * TODO: Better exception handling
         	 */
             mReferenceTime = -1L;
         }
 
-        setReferenceTime(mReferenceTime);
+        setReferenceTime(RTF_ONLY_TIME_RELATIVE, mReferenceTime);
 
     }
 
     /**
      * Returns prefix
+     *
      * @return
      */
     public String getPrefix() {
@@ -80,10 +98,9 @@ public class RelativeTimeTextView extends TextView {
 
     /**
      * String to be attached before the reference time
-     * @param prefix
      *
-     * Example:
-     * [prefix] in XX minutes
+     * @param prefix Example:
+     *               [prefix] in XX minutes
      */
     public void setPrefix(String prefix) {
         this.mPrefix = prefix;
@@ -92,6 +109,7 @@ public class RelativeTimeTextView extends TextView {
 
     /**
      * Returns suffix
+     *
      * @return
      */
     public String getSuffix() {
@@ -100,10 +118,9 @@ public class RelativeTimeTextView extends TextView {
 
     /**
      * String to be attached after the reference time
-     * @param suffix
      *
-     * Example:
-     * in XX minutes [suffix]
+     * @param suffix Example:
+     *               in XX minutes [suffix]
      */
     public void setSuffix(String suffix) {
         this.mSuffix = suffix;
@@ -114,9 +131,11 @@ public class RelativeTimeTextView extends TextView {
      * Sets the reference time for this view. At any moment, the view will render a relative time period relative to the time set here.
      * <p/>
      * This value can also be set with the XML attribute {@code reference_time}
+     *
      * @param referenceTime The timestamp (in milliseconds since epoch) that will be the reference point for this view.
      */
-    public void setReferenceTime(long referenceTime) {
+    public void setReferenceTime(RelativeTimeFormat timeFormat, long referenceTime) {
+        this.mTimeFormat = timeFormat;
         this.mReferenceTime = referenceTime;
         
         /*
@@ -147,19 +166,173 @@ public class RelativeTimeTextView extends TextView {
          */
         if (this.mReferenceTime == -1L)
             return;
-        setText(mPrefix + getRelativeTimeDisplayString() + mSuffix);
+        setText(mPrefix + getFormattedDateAndTime() + mSuffix);
     }
 
-    private CharSequence getRelativeTimeDisplayString() {
-        long now = System.currentTimeMillis();
-        long difference = now - mReferenceTime; 
-        return (difference >= 0 &&  difference<=DateUtils.MINUTE_IN_MILLIS) ? 
-                getResources().getString(R.string.just_now): 
-                DateUtils.getRelativeTimeSpanString(
-                    mReferenceTime,
-                    now,
-                    DateUtils.MINUTE_IN_MILLIS,
-                    DateUtils.FORMAT_ABBREV_RELATIVE);
+
+    //OnlyDateRelative —> Today/tomorrow
+    //OnlyDateAbsolute —> 16 Jul 2015
+    //OnlyTimeRelative —> Now, In 5m, 6m ago
+    //OnlyTimeAbsolute —> 16:40
+    //ComposedAbsoluteOmittingToday —> 16:50 1 Jul 2015 || 16:50
+    //ComposedRelativeOmittingToday —> Tomorrow 10:15 || 10:50 (in 10m)
+    //ComposedRelativeOmittingTodayWithCounter —> Tomorrow 10:15 || 10:50 (in 10m)
+
+    private CharSequence getFormattedDateAndTime() {
+
+        CharSequence composed = "";
+
+        switch (mTimeFormat) {
+            case RTF_ONLY_DATE_RELATIVE:
+                composed = getFormattedDate();
+                break;
+            case RTF_ONLY_DATE_ABSOLUTE:
+                composed = getFormattedDate();
+                break;
+            case RTF_ONLY_TIME_RELATIVE:
+                composed = getFormattedTime();
+                break;
+            case RTF_ONLY_TIME_RELATIVE_TODAY_AND_ABSOLUTE_OTHERWISE:
+                if (DateUtils.isToday(mReferenceTime)) {
+                    composed = getFormattedTime();
+                } else {
+                    composed = getSimpleFormattedTime();
+                }
+                break;
+            case RTF_ONLY_TIME_ABSOLUTE:
+                composed = getSimpleFormattedTime();
+
+                break;
+            case RTF_COMPOSED_ABSOLUTE: {
+                // Time
+                CharSequence timeStr = getSimpleFormattedTime();
+
+                // Date
+                CharSequence dateStr = DateFormat.getDateInstance(DateFormat.SHORT).format(new Date(mReferenceTime));
+                composed = timeStr + " " + dateStr;
+                break;
+            }
+            case RTF_COMPOSED_ABSOLUTE_OMITTING_TODAY: {
+                // Time
+                composed = getSimpleFormattedTime();
+                // Date
+                if (!DateUtils.isToday(mReferenceTime)) {
+                    CharSequence dateStr = DateFormat.getDateInstance(DateFormat.SHORT).format(new Date(mReferenceTime));
+                    composed = composed + " " + dateStr;
+                }
+                break;
+            }
+            case RTF_COMPOSED_RELATIVE_OMITTING_TODAY: {
+                // Time
+                composed = getSimpleFormattedTime();
+                // Date
+                if (!DateUtils.isToday(mReferenceTime)) {
+                    composed = getFormattedDate() + " " + composed;
+                }
+                break;
+            }
+            case RTF_COMPOSED_RELATIVE_OMITTING_TODAY_WITH_COUNTER: {
+                // Time
+                composed = getSimpleFormattedTime();
+
+                // Date
+                if (!DateUtils.isToday(mReferenceTime)) {
+                    composed = getFormattedDate() + " " + composed;
+                }
+                else {
+                    composed = composed + " " + getFormattedTime();
+                }
+                break;
+            }
+            default:
+                break;
+        }
+
+        return composed;
+    }
+
+    private boolean isTomorrow(long timeInMillis) {
+        return DateUtils.isToday(new Date(timeInMillis).getTime() - DateUtils.DAY_IN_MILLIS);
+    }
+
+    private boolean isYesterday(long timeInMillis) {
+        return DateUtils.isToday(new Date(timeInMillis).getTime() + DateUtils.DAY_IN_MILLIS);
+    }
+
+    private boolean isWithinThreeNextDays(long timeInMillis) {
+        return DateUtils.isToday(new Date(timeInMillis).getTime() - 2 * DateUtils.DAY_IN_MILLIS)
+                || DateUtils.isToday(new Date(timeInMillis).getTime() - 3 * DateUtils.DAY_IN_MILLIS);
+    }
+
+    private boolean isNow(long timeInMillis) {
+        return timeInMillis > System.currentTimeMillis() - 30 * 1000 && timeInMillis < System.currentTimeMillis() + 30 * 1000;
+    }
+
+    private boolean isWithin24H(long timeInMillis) {
+        return timeInMillis > System.currentTimeMillis() - DateUtils.DAY_IN_MILLIS && timeInMillis < System.currentTimeMillis() + DateUtils.DAY_IN_MILLIS;
+    }
+
+    private CharSequence getFormattedDate() {
+
+        CharSequence result = "";
+
+        switch (mTimeFormat) {
+            case RTF_ONLY_DATE_RELATIVE:
+            case RTF_COMPOSED_RELATIVE_OMITTING_TODAY:
+                if (DateUtils.isToday(mReferenceTime)
+                        || isTomorrow(mReferenceTime)
+                        || isYesterday(mReferenceTime)) {
+                    result = DateUtils.getRelativeTimeSpanString(
+                            mReferenceTime,
+                            System.currentTimeMillis(),
+                            DateUtils.DAY_IN_MILLIS,
+                            DateUtils.FORMAT_ABBREV_RELATIVE);
+                } else if (isWithinThreeNextDays(mReferenceTime)) {
+                    SimpleDateFormat format = new SimpleDateFormat("EEEE");
+                    result = format.format(new Date(mReferenceTime));
+                } else {
+                    result = DateFormat.getDateInstance(DateFormat.SHORT).format(new Date(mReferenceTime));
+                }
+                break;
+            case RTF_ONLY_DATE_ABSOLUTE:
+                result = DateFormat.getDateInstance(DateFormat.SHORT).format(new Date(mReferenceTime));
+                break;
+        }
+
+        return result;
+    }
+
+    private CharSequence getFormattedTime() {
+        CharSequence result = "";
+
+        switch (mTimeFormat) {
+            case RTF_ONLY_TIME_RELATIVE:
+            case RTF_ONLY_TIME_RELATIVE_TODAY_AND_ABSOLUTE_OTHERWISE:
+            case RTF_COMPOSED_RELATIVE_OMITTING_TODAY_WITH_COUNTER:
+                if (isNow(mReferenceTime)) {
+                    result = getResources().getString(R.string.just_now);
+                } else if (isWithin24H(mReferenceTime)) {
+                    result = DateUtils.getRelativeTimeSpanString(
+                            mReferenceTime,
+                            System.currentTimeMillis(),
+                            DateUtils.MINUTE_IN_MILLIS,
+                            DateUtils.FORMAT_ABBREV_RELATIVE);
+                } else {
+                    SimpleDateFormat format = new SimpleDateFormat("EEE dd, MMM");
+                    result = format.format(new Date(mReferenceTime));
+                }
+                break;
+            case RTF_ONLY_DATE_ABSOLUTE:
+                result = DateFormat.getDateInstance(DateFormat.SHORT).format(new Date(mReferenceTime));
+                break;
+        }
+
+        return result;
+    }
+
+    private CharSequence getSimpleFormattedTime() {
+        SimpleDateFormat format = new SimpleDateFormat("HH:mm");
+        return format.format(new Date(mReferenceTime));
     }
 
     @Override
@@ -186,7 +359,7 @@ public class RelativeTimeTextView extends TextView {
     }
 
     private void startTaskForPeriodicallyUpdatingRelativeTime() {
-        if(mUpdateTimeTask.isDetached()) initUpdateTimeTask();
+        if (mUpdateTimeTask.isDetached()) initUpdateTimeTask();
         mHandler.post(mUpdateTimeTask);
         isUpdateTaskRunning = true;
     }
@@ -196,7 +369,7 @@ public class RelativeTimeTextView extends TextView {
     }
 
     private void stopTaskForPeriodicallyUpdatingRelativeTime() {
-        if(isUpdateTaskRunning) {
+        if (isUpdateTaskRunning) {
             mUpdateTimeTask.detach();
             mHandler.removeCallbacks(mUpdateTimeTask);
             isUpdateTaskRunning = false;
@@ -210,7 +383,7 @@ public class RelativeTimeTextView extends TextView {
         ss.referenceTime = mReferenceTime;
         return ss;
     }
-    
+
     @Override
     public void onRestoreInstanceState(Parcelable state) {
         if (!(state instanceof SavedState)) {
@@ -218,7 +391,7 @@ public class RelativeTimeTextView extends TextView {
             return;
         }
 
-        SavedState ss = (SavedState)state;
+        SavedState ss = (SavedState) state;
         mReferenceTime = ss.referenceTime;
         super.onRestoreInstanceState(ss.getSuperState());
     }
@@ -246,7 +419,7 @@ public class RelativeTimeTextView extends TextView {
                 return new SavedState[size];
             }
         };
-        
+
         private SavedState(Parcel in) {
             super(in);
             referenceTime = in.readLong();

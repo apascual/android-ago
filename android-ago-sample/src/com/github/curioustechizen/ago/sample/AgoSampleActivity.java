@@ -14,6 +14,8 @@ import android.widget.TextView;
 import com.github.curioustechizen.ago.RelativeTimeTextView;
 import com.github.curioustechizen.ago.sample.DummyContent.RowItem;
 
+import static com.github.curioustechizen.ago.RelativeTimeTextView.RelativeTimeFormat.RTF_ONLY_TIME_RELATIVE;
+
 public class AgoSampleActivity extends ListActivity {
 
 	@Override
@@ -41,7 +43,7 @@ public class AgoSampleActivity extends ListActivity {
 			RelativeTimeTextView tvTimestamp = (RelativeTimeTextView) convertView.findViewById(R.id.timestamp);
 			
 			tvMessage.setText(item.info);
-			tvTimestamp.setReferenceTime(item.timestamp);
+			tvTimestamp.setReferenceTime(item.format, item.timestamp);
 			return convertView;
 		}
 	}
