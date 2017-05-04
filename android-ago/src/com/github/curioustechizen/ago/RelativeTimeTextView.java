@@ -248,7 +248,7 @@ public class RelativeTimeTextView extends TextView {
                     composed = getFormattedDate(mTimeFormat, mReferenceTime) + " " + composed;
                 }
                 else {
-                    composed = composed + " " + getFormattedTime(mTimeFormat, mReferenceTime);
+                    composed = composed + " (" + getFormattedTime(mTimeFormat, mReferenceTime) + ")";
                 }
                 break;
             }
