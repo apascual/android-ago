@@ -299,7 +299,8 @@ public class RelativeTimeTextView extends TextView {
                     SimpleDateFormat format = new SimpleDateFormat("EEEE");
                     result = format.format(new Date(mReferenceTime));
                 } else {
-                    result = DateFormat.getDateInstance(DateFormat.SHORT).format(new Date(mReferenceTime));
+                    SimpleDateFormat format = new SimpleDateFormat("EEE dd, MMM");
+                    result = format.format(new Date(mReferenceTime));
                 }
                 break;
             case RTF_ONLY_DATE_ABSOLUTE:
