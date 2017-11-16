@@ -273,7 +273,7 @@ public class RelativeTimeTextView extends TextView {
     }
 
     private static boolean isNow(long timeInMillis) {
-        return timeInMillis > System.currentTimeMillis() - 30 * 1000 && timeInMillis < System.currentTimeMillis() + 30 * 1000;
+        return timeInMillis > System.currentTimeMillis() - 60 * 1000 && timeInMillis < System.currentTimeMillis() + 60 * 1000;
     }
 
     private static boolean isWithin24H(long timeInMillis) {
